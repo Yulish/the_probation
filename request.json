@@ -1,0 +1,29 @@
+data = {
+    "user": {
+        "email": "tester5@yandex.com",
+        "fam": "Пользователь",
+        "name": "Тест",
+        "otc": "",
+        "phone": "+799912347"
+    },
+    "coord": {  # Изменено: убрали "location", сделали "coord" напрямую
+        "latitude": 55.7558,
+        "longitude": 37.6173,
+        "height": 0
+    },
+    "beautyTitle": "Красивое название",  # Изменено: вынесено на уровень
+    "title": "Тестовый перевал",
+    "other_titles": "Другой титул",
+    "connect": "",
+    "level": {
+        "winter": "1A",
+        "summer": "1A",
+        "autumn": "1A",
+        "spring": "1A"
+    },
+    "images": [
+        {
+            "data": generate_base64(),
+            "title": "Тестовое фото"
+        }
+    ]}
