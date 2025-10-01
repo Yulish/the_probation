@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Users, Coords, Image, PerevalAdded
 from django.utils.dateparse import parse_datetime
+from django.core.files.base import ContentFile
 import base64
 import logging
 
@@ -23,12 +24,20 @@ class ImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Image
-        fields = ['title', 'data']
+        fields = ['title', 'image', 'data']
 
     def create(self, validated_data):
         data_b64 = validated_data.pop('data')
+        title = validated_data.get('title', 'image')
         try:
-            validated_data['data'] = base64.b64decode(data_b64)
+            img_bytes = base64.b64decode(data_b64)
+            if ',' in data_b64:
+                header, data_part = data_b64.split(',', 1)
+                ext = header.split('/')[-1].split(';')[0] if '/' in header else 'png'
+            else:
+                ext = 'png'
+            file_name = f"{title}.{ext}"
+            validated_data['image'] = ContentFile(img_bytes, name=file_name)
         except Exception:
             raise serializers.ValidationError("Неверный формат данных изображения (должен быть base64)")
         return super().create(validated_data)
@@ -63,15 +72,6 @@ class PerevalAddedSerializer(serializers.ModelSerializer):
         level_data = validated_data.pop('level', {})
 
         user, _ = Users.get_or_create_with_update(**user_data)
-        # user, _ = Users.objects.get_or_create(
-        #     email=user_data.get('email'),
-        #     defaults={
-        #         'username': user_data.get('email'),  # Или как у тебя
-        #         'first_name': user_data.get('first_name', ''),
-        #         'last_name': user_data.get('last_name', ''),
-        #         'phone': user_data.get('phone', ''),
-        #     }
-        # )
 
         return PerevalAdded.create_with_related(
             user_data=user_data,

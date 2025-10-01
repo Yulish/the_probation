@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.core.files.base import ContentFile
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
@@ -86,7 +87,7 @@ class Coords(models.Model):
 
 class Image(models.Model):
     title = models.TextField(verbose_name="Название файла")  # Было filename, теперь title
-    data = models.BinaryField(null=True, blank=True, verbose_name="Данные изображения")
+    image = models.ImageField(upload_to='images/', null=True, blank=True, verbose_name="Изображение")
     added_at = models.DateTimeField(default=timezone.now, verbose_name="Дата добавления")
 
     class Meta:
@@ -97,7 +98,14 @@ class Image(models.Model):
     def create_from_base64(cls, title, base64_data):
         try:
             img_bytes = base64.b64decode(base64_data)
-            return cls.objects.create(title=title, data=img_bytes)
+            if ',' in base64_data:
+                header, data_part = base64_data.split(',', 1)
+                ext = header.split('/')[-1].split(';')[0] if '/' in header else 'png'  # По умолчанию png
+            else:
+                ext = 'png'
+            file_name = f"{title}.{ext}"
+            content_file = ContentFile(img_bytes, name=file_name)
+            return cls.objects.create(title=title, image=content_file)
         except Exception as e:
             logger.error(f"Ошибка при обработке изображения {title}: {e}")
             raise ValueError(f"Неверный base64 для изображения {title}")
