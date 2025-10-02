@@ -10,12 +10,11 @@ logger = logging.getLogger(__name__)
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = Users
-        fields = ['last_name', 'first_name', 'email', 'phone']
+        fields = ['fio', 'email', 'phone']
         extra_kwargs = {
             'email': {'required': True},
-            'last_name': {'required': False},
-            'first_name': {'required': False},
-            'phone': {'required': False},
+            'fio': {'required': True},
+            'phone': {'required': True},
         }
 
 

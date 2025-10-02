@@ -49,16 +49,16 @@ data = {
 
 url = "http://127.0.0.1:8000/api/submitData/"
 
-try:
-response = requests.post(url, json=data)
-print(f"Статус ответа: {response.status_code}")
-print(f"Ответ сервера: {response.json()}")
+<!--try:-->
+<!--response = requests.post(url, json=data)-->
+<!--print(f"Статус ответа: {response.status_code}")-->
+<!--print(f"Ответ сервера: {response.json()}")-->
 
-if response.status_code == 200 and response.json().get("success"):
-    print("✅ УСПЕХ: Данные отправлены и сохранены! Проверьте админ-панель Django.")
-else:
-    print("❌ ОШИБКА: Проверьте детали выше. Возможно, модель требует другие поля.")
-except Exception as e:
-print(f"Ошибка при отправке: {e}")
+<!--if response.status_code == 200 and response.json().get("success"):-->
+<!--    print("✅ УСПЕХ: Данные отправлены и сохранены! Проверьте админ-панель Django.")-->
+<!--else:-->
+<!--    print("❌ ОШИБКА: Проверьте детали выше. Возможно, модель требует другие поля.")-->
+<!--except Exception as e:-->
+<!--print(f"Ошибка при отправке: {e}")-->
 
 
