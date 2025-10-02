@@ -60,9 +60,10 @@ class PerevalAddedSerializer(serializers.ModelSerializer):
     class Meta:
         model = PerevalAdded
         fields = [
-            'beautyTitle', 'title', 'other_titles', 'connect', 'add_time',
+            'beautyTitle', 'title', 'other_titles', 'connect',
             'user', 'coord', 'level', 'images'
         ]
+        read_only_fields = ['add_time']
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
@@ -80,12 +81,5 @@ class PerevalAddedSerializer(serializers.ModelSerializer):
             **validated_data
         )
 
-    def validate_add_time(self, value):
-        if isinstance(value, str):
-            parsed = parse_datetime(value)
-            if parsed is None:
-                raise serializers.ValidationError("Неверный формат даты и времени. Используйте формат YYYY-MM-DD HH:MM:SS")
-            return parsed
-        return value
 
 

@@ -3,14 +3,12 @@ import requests
 url = 'http://127.0.0.1:8000/api/submitData/'
 data = {
     "beautyTitle": "пер. ",
-    "title": "Новый",
+    "title": "Новый перевал",
     "other_titles": "Новый перевал",
     "connect": "",
-    "add_time": "2021-09-22 13:18:13",
     "user": {
         "email": "qwerty@mail.ru",
-        "last_name": "Пупкин",
-        "first_name": "Василий",
+        "fio": "Василий Пупкин",
         "phone": "+7 555 55 55"
     },
     "coord": {
@@ -24,6 +22,7 @@ data = {
         "autumn": "2А",
         "spring": "3B"
     },
+
     "images": [
         {
             "title": "Новый перевал",
@@ -39,4 +38,12 @@ data = {
 response = requests.post(url, json=data)
 print('Статус код:', response.status_code)
 print('Ответ:', response.text)
+
+if response.status_code == 201:
+    pereval_data = response.json()
+    status = pereval_data.get('status')
+    if status != 'new':
+        print('Ошибка: статус должен быть new, но получен', status)
+    else:
+        print('Статус корректен: new')
 
