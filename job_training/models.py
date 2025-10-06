@@ -1,4 +1,5 @@
 from django.contrib.auth.models import AbstractUser
+from django.core.files.base import ContentFile
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
@@ -12,9 +13,7 @@ logger = logging.getLogger(__name__)
 class Users(AbstractUser):
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, unique=True)
-    # name = models.CharField(max_length=100)
-    # fam = models.CharField(max_length=100)
-    # patronymic = models.CharField(max_length=100, blank=True)
+
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['phone']
@@ -85,8 +84,9 @@ class Coords(models.Model):
         return f"Координаты: {self.latitude}, {self.longitude}, {self.height} м"
 
 class Image(models.Model):
-    title = models.TextField(verbose_name="Название файла")  # Было filename, теперь title
-    data = models.BinaryField(null=True, blank=True, verbose_name="Данные изображения")
+    title = models.TextField(verbose_name="Название файла")  # Было filename, теперь ti
+    image = models.ImageField(upload_to='images/', null=True, blank=True, verbose_name="Изображение")
+    # data = models.BinaryField(null=True, blank=True, verbose_name="Данные изображения")
     added_at = models.DateTimeField(default=timezone.now, verbose_name="Дата добавления")
 
     class Meta:
@@ -97,11 +97,17 @@ class Image(models.Model):
     def create_from_base64(cls, title, base64_data):
         try:
             img_bytes = base64.b64decode(base64_data)
-            return cls.objects.create(title=title, data=img_bytes)
+            if ',' in base64_data:
+                header, data_part = base64_data.split(',', 1)
+                ext = header.split('/')[-1].split(';')[0] if '/' in header else 'png'  # По умолчанию png
+            else:
+                ext = 'png'
+            file_name = f"{title}.{ext}"
+            content_file = ContentFile(img_bytes, name=file_name)
+            return cls.objects.create(title=title, image=content_file)
         except Exception as e:
             logger.error(f"Ошибка при обработке изображения {title}: {e}")
             raise ValueError(f"Неверный base64 для изображения {title}")
-
 
     def __str__(self):
         return self.title
@@ -158,6 +164,6 @@ class PerevalImages(models.Model):
     image = models.ForeignKey(Image, on_delete=models.CASCADE, related_name='pereval_images')
 
     class Meta:
-        unique_together = ('pereval', 'image')  # Чтобы избежать дубликатов
+        unique_together = ('pereval', 'image')
         verbose_name = "Связь перевал-изображение"
         verbose_name_plural = "Связи перевал-изображение"

@@ -1,12 +1,11 @@
-from rest_framework import viewsets
 from .models import Users, Coords, Image, PerevalAdded
 from .serializers import ImageSerializer, UserSerializer, CoordsSerializer, PerevalAddedSerializer
+from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework import status
-import logging
-from rest_framework.decorators import api_view
+from django.shortcuts import get_object_or_404
 
+import logging
 logger = logging.getLogger(__name__)
 
 
@@ -25,9 +24,43 @@ class ImageViewset(viewsets.ModelViewSet):
     queryset = Image.objects.all()
     serializer_class = ImageSerializer
 
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.status != 'new':
+            return Response({'error': 'Изменения разрешены только для записей со статусом "new".'},
+                            status=status.HTTP_403_FORBIDDEN)
+
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
+
 class PerevalAddedViewset(viewsets.ModelViewSet):
     queryset = PerevalAdded.objects.all()
     serializer_class = PerevalAddedSerializer
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.status != 'new':
+            return Response({
+                'state': 0,
+                'message': 'Запись уже обработана модератором и не может быть изменена'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            return Response({
+                'state': 1,
+                'message': 'Запись успешно обновлена'
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'state': 0,
+                'message': 'Ошибка валидации данных',
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
 
 
 
@@ -50,3 +83,33 @@ class SubmitDataView(APIView):
                 'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
 
+
+class pereval_detail(APIView):
+
+    def get(self, request, pk):
+        pereval = get_object_or_404(PerevalAdded, pk=pk)
+        serializer = PerevalAddedSerializer(pereval)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, pk):
+        pereval = get_object_or_404(PerevalAdded, pk=pk)
+
+        if pereval.status != 'new':
+            return Response({
+                'state': 0,
+                'message': 'Запись уже обработана модератором и не может быть изменена'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = PerevalAddedSerializer(pereval, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'state': 1,
+                'message': 'Запись успешно обновлена'
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'state': 0,
+                'message': 'Ошибка валидации данных',
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)

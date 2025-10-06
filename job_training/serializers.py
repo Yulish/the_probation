@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Users, Coords, Image, PerevalAdded
+from .models import Users, Coords, Image, PerevalAdded, PerevalImages, PerevalLevel
 from django.utils.dateparse import parse_datetime
 import base64
 import logging
@@ -44,7 +44,7 @@ class CoordsSerializer(serializers.ModelSerializer):
 
 
 class PerevalAddedSerializer(serializers.ModelSerializer):
-    user = serializers.DictField()
+    user = serializers.DictField(write_only=True)
     coord = CoordsSerializer()
     images = ImageSerializer(many=True, required=False)
     level = serializers.DictField(child=serializers.CharField(allow_blank=True), write_only=True)
@@ -53,8 +53,14 @@ class PerevalAddedSerializer(serializers.ModelSerializer):
         model = PerevalAdded
         fields = [
             'beautyTitle', 'title', 'other_titles', 'connect', 'add_time',
-            'user', 'coord', 'level', 'images'
+            'user', 'coord', 'level', 'images', 'status'
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.user:
+            data['user'] = UserSerializer(instance.user).data
+        return data
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
@@ -62,16 +68,6 @@ class PerevalAddedSerializer(serializers.ModelSerializer):
         images_data = validated_data.pop('images', [])
         level_data = validated_data.pop('level', {})
 
-        user, _ = Users.get_or_create_with_update(**user_data)
-        # user, _ = Users.objects.get_or_create(
-        #     email=user_data.get('email'),
-        #     defaults={
-        #         'username': user_data.get('email'),  # Или как у тебя
-        #         'first_name': user_data.get('first_name', ''),
-        #         'last_name': user_data.get('last_name', ''),
-        #         'phone': user_data.get('phone', ''),
-        #     }
-        # )
 
         return PerevalAdded.create_with_related(
             user_data=user_data,
@@ -80,6 +76,34 @@ class PerevalAddedSerializer(serializers.ModelSerializer):
             level_data=level_data,
             **validated_data
         )
+
+    def update(self, instance, validated_data):
+        validated_data.pop('user', None)
+
+
+        coord_data = validated_data.pop('coord', None)
+        if coord_data:
+            coord_serializer = CoordsSerializer(instance.coord, data=coord_data, partial=True)
+            if coord_serializer.is_valid():
+                coord_serializer.save()
+
+        level_data = validated_data.pop('level', None)
+        if level_data:
+            level_obj, _ = PerevalLevel.objects.get_or_create(**level_data)
+            instance.level = level_obj
+
+        images_data = validated_data.pop('images', None)
+        if images_data is not None:
+            instance.pereval_images.all().delete()
+            for img_data in images_data:
+                image = Image.create_from_base64(img_data['title'], img_data['data'])
+                PerevalImages.objects.create(pereval=instance, image=image)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        return instance
 
     def validate_add_time(self, value):
         if isinstance(value, str):
