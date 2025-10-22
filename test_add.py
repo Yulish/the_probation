@@ -2,7 +2,7 @@ import requests
 import json
 
 
-url = 'http://127.0.0.1:8000/api/submitData/36/'
+url = 'http://127.0.0.1:8000/api/submitData/39/'
 
 
 data = {
@@ -12,8 +12,8 @@ data = {
     "connect": "",
     "add_time": "2021-09-22 13:18:13",
     "user": {
-        "email": "mail@mail.ru",
-        "fio": "Новый Василь",
+        "email": "mailing@mail.ru",
+        "fio": "Новый Василий",
         "phone": "+7 666 55 55"
     },
     "coord": {

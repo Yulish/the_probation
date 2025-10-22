@@ -9,11 +9,10 @@ logger = logging.getLogger(__name__)
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = Users
-        fields = ['last_name', 'first_name', 'email', 'phone']
+        fields = ['fio', 'email', 'phone']
         extra_kwargs = {
             'email': {'required': True},
-            'last_name': {'required': False},
-            'first_name': {'required': False},
+            'fio': {'required': False},
             'phone': {'required': False},
         }
 
@@ -64,6 +63,13 @@ class PerevalAddedSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
+        user, created = Users.objects.get_or_create(
+            email=user_data['email'],
+            defaults={
+                'fio': user_data.get('fio'),
+                'phone': user_data.get('phone'),
+            }
+        )
         coord_data = validated_data.pop('coord')
         images_data = validated_data.pop('images', [])
         level_data = validated_data.pop('level', {})

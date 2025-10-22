@@ -9,7 +9,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-
 class UserViewset(viewsets.ModelViewSet):
     queryset = Users.objects.all()
     serializer_class = UserSerializer
@@ -51,16 +50,7 @@ class PerevalAddedViewset(viewsets.ModelViewSet):
                 'message': 'Ошибка валидации данных',
                 'errors': serializer.errors
             }, status=status.HTTP_400_BAD_REQUEST)
-    # class Meta:
-    #     model = PerevalAdded
-    #     fields = ['beauty_title', 'title', 'other_titles', 'connect', 'coords', 'level', 'user',
-    #               'images']
-    #
-    # def create(self, validated_data):
-    #     user_data = validated_data.pop('user')
-    #     user, created = Users.get_or_create_with_update(**user_data)
-    #     pereval = PerevalAdded.objects.create(user=user, **validated_data)
-    #     return pereval
+
 
 
 class SubmitDataView(APIView):
