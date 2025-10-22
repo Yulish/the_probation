@@ -1,4 +1,4 @@
-from django.contrib.auth.models import AbstractUser, UserManager
+from django.contrib.auth.models import AbstractUser
 from django.core.files.base import ContentFile
 from django.db import models
 from django.utils import timezone
@@ -9,39 +9,15 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class MyUserManager(UserManager):
-    def create_superuser(self, email, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)
-
-        if not email:
-            raise ValueError('The Email field must be set')
-        if not password:
-            raise ValueError('Password is required')
-
-        user = self.model(email=email, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
 
 class Users(AbstractUser):
-    username = models.CharField(max_length=150, unique=True, blank=True)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, unique=True)
-    fio  = models.CharField(max_length=50, unique=False)
+    fio = models.CharField(max_length=50, unique=False)
 
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['phone']
-
-    objects = MyUserManager()
-
-    def save(self, *args, **kwargs):
-        if not self.username:
-            self.username = self.email
-        super().save(*args, **kwargs)
 
     @staticmethod
     def get_or_create_with_update(**user_data):
@@ -62,27 +38,6 @@ class Users(AbstractUser):
                     setattr(user, key, value)
             user.save()
         return user, created
-
-
-    # def get_or_create_with_update(**user_data):
-    #     email = user_data.get('email')
-    #     if not email:
-    #         raise ValueError("Email is required")
-    #
-    #     username = user_data.get('email')
-    #     # username = user_data.get('username') or email
-    #     user_data['username'] = username
-    #
-    #     user, created = Users.objects.get_or_create(
-    #         email=email,
-    #         defaults=user_data
-    #     )
-    #     if not created:
-    #         for key, value in user_data.items():
-    #             if hasattr(user, key) and key not in ['email']:
-    #                 setattr(user, key, value)
-    #         user.save()
-    #     return user, created
 
 
 class PerevalLevel(models.Model):
@@ -130,8 +85,9 @@ class Coords(models.Model):
         return f"Координаты: {self.latitude}, {self.longitude}, {self.height} м"
 
 class Image(models.Model):
-    title = models.TextField(verbose_name="Название файла")  # Было filename, теперь title
+    title = models.TextField(verbose_name="Название файла")  # Было filename, теперь ti
     image = models.ImageField(upload_to='images/', null=True, blank=True, verbose_name="Изображение")
+    # data = models.BinaryField(null=True, blank=True, verbose_name="Данные изображения")
     added_at = models.DateTimeField(default=timezone.now, verbose_name="Дата добавления")
 
     class Meta:
@@ -153,7 +109,6 @@ class Image(models.Model):
         except Exception as e:
             logger.error(f"Ошибка при обработке изображения {title}: {e}")
             raise ValueError(f"Неверный base64 для изображения {title}")
-
 
     def __str__(self):
         return self.title
@@ -210,6 +165,6 @@ class PerevalImages(models.Model):
     image = models.ForeignKey(Image, on_delete=models.CASCADE, related_name='pereval_images')
 
     class Meta:
-        unique_together = ('pereval', 'image')  # Чтобы избежать дубликатов
+        unique_together = ('pereval', 'image')
         verbose_name = "Связь перевал-изображение"
         verbose_name_plural = "Связи перевал-изображение"

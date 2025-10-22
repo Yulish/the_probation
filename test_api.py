@@ -7,9 +7,9 @@ data = {
     "other_titles": "Новый перевал",
     "connect": "",
     "user": {
-        "email": "qwerty@mail.ru",
-        "fio": "Василий Пупкин",
-        "phone": "+7 555 55 55"
+        "email": "mail@mail.ru",
+        "fio": "Василий Новый",
+        "phone": "+7 666 55 55"
     },
     "coord": {
         "latitude": 43.3842,

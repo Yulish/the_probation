@@ -1,14 +1,13 @@
-from rest_framework import viewsets
 from .models import Users, Coords, Image, PerevalAdded
 from .serializers import ImageSerializer, UserSerializer, CoordsSerializer, PerevalAddedSerializer
+from rest_framework import viewsets, status
 from rest_framework.views import APIView
-from django.db import DatabaseError
 from rest_framework.response import Response
-from rest_framework import status
-import logging
-from rest_framework.decorators import api_view
+from django.shortcuts import get_object_or_404
 
+import logging
 logger = logging.getLogger(__name__)
+
 
 
 class UserViewset(viewsets.ModelViewSet):
@@ -31,63 +30,90 @@ class PerevalAddedViewset(viewsets.ModelViewSet):
     serializer_class = PerevalAddedSerializer
     user = UserSerializer()
 
-    class Meta:
-        model = PerevalAdded
-        fields = ['beauty_title', 'title', 'other_titles', 'connect', 'coords', 'level', 'user',
-                  'images']
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.status != 'new':
+            return Response({
+                'state': 0,
+                'message': 'Запись уже обработана модератором и не может быть изменена'
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-    def create(self, validated_data):
-        user_data = validated_data.pop('user')
-        user, created = Users.get_or_create_with_update(**user_data)
-        pereval = PerevalAdded.objects.create(user=user, **validated_data)
-        return pereval
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            return Response({
+                'state': 1,
+                'message': 'Запись успешно обновлена'
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'state': 0,
+                'message': 'Ошибка валидации данных',
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+    # class Meta:
+    #     model = PerevalAdded
+    #     fields = ['beauty_title', 'title', 'other_titles', 'connect', 'coords', 'level', 'user',
+    #               'images']
+    #
+    # def create(self, validated_data):
+    #     user_data = validated_data.pop('user')
+    #     user, created = Users.get_or_create_with_update(**user_data)
+    #     pereval = PerevalAdded.objects.create(user=user, **validated_data)
+    #     return pereval
 
 
 class SubmitDataView(APIView):
     def post(self, request):
-        try:
-            serializer = PerevalAddedSerializer(data=request.data)
-            if serializer.is_valid():
-                pereval = serializer.save()
-                logger.info(f"Создан PerevalAdded с ID {pereval.id}")
-                return Response({
-                    "status": 200,
-                    "message": None,
-                    "id": pereval.id
-                }, status=status.HTTP_200_OK)
-
-            else:
-                logger.error(f"Ошибки валидации: {serializer.errors}")
-                return Response({
-                    "status": 400,
-                    "message": "Ошибка валидации данных",
-                    "errors": serializer.errors,
-                    "id": None
-                }, status=status.HTTP_400_BAD_REQUEST)
-        except DatabaseError:
-            logger.error("Ошибка подключения к базе данных")
+        serializer = PerevalAddedSerializer(data=request.data)
+        if serializer.is_valid():
+            pereval = serializer.save()
+            logger.info(f"Создан PerevalAdded с ID {pereval.id}")
             return Response({
-                "status": 500,
-                "message": "Ошибка подключения к базе данных",
-                "id": None
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                'success': True,
+                'id': pereval.id,
+                'beautyTitle': pereval.beautyTitle
+            }, status=status.HTTP_201_CREATED)
+        else:
+            logger.error(f"Ошибки валидации: {serializer.errors}")
+            print(f"DEBUG: Serializer errors: {serializer.errors}")  # Для отладки в консоли
+            return Response({
+                'success': False,
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
 
-# class SubmitDataView(APIView):
-#     def post(self, request):
-#         serializer = PerevalAddedSerializer(data=request.data)
-#         if serializer.is_valid():
-#             pereval = serializer.save()
-#             logger.info(f"Создан PerevalAdded с ID {pereval.id}")
-#             return Response({
-#                 'success': True,
-#                 'id': pereval.id,
-#                 'beautyTitle': pereval.beautyTitle
-#             }, status=status.HTTP_201_CREATED)
-#         else:
-#             logger.error(f"Ошибки валидации: {serializer.errors}")
-#             print(f"DEBUG: Serializer errors: {serializer.errors}")  # Для отладки в консоли
-#             return Response({
-#                 'success': False,
-#                 'errors': serializer.errors
-#             }, status=status.HTTP_400_BAD_REQUEST)
-#
+    def get(self, request):
+        perevals = PerevalAdded.objects.all()
+        serializer = PerevalAddedSerializer(perevals, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class pereval_detail(APIView):
+
+    def get(self, request, pk):
+        pereval = get_object_or_404(PerevalAdded, pk=pk)
+        serializer = PerevalAddedSerializer(pereval)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request, pk):
+        pereval = get_object_or_404(PerevalAdded, pk=pk)
+
+        if pereval.status != 'new':
+            return Response({
+                'state': 0,
+                'message': 'Запись уже обработана модератором и не может быть изменена'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = PerevalAddedSerializer(pereval, data=request.data, partial=True)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({
+                'state': 1,
+                'message': 'Запись успешно обновлена'
+            }, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'state': 0,
+                'message': 'Ошибка валидации данных',
+                'errors': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)

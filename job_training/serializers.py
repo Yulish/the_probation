@@ -1,7 +1,6 @@
 from rest_framework import serializers
-from .models import Users, Coords, Image, PerevalAdded
+from .models import Users, Coords, Image, PerevalAdded, PerevalImages, PerevalLevel
 from django.utils.dateparse import parse_datetime
-from django.core.files.base import ContentFile
 import base64
 import logging
 
@@ -10,11 +9,12 @@ logger = logging.getLogger(__name__)
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = Users
-        fields = ['fio', 'email', 'phone']
+        fields = ['last_name', 'first_name', 'email', 'phone']
         extra_kwargs = {
             'email': {'required': True},
-            'fio': {'required': True},
-            'phone': {'required': True},
+            'last_name': {'required': False},
+            'first_name': {'required': False},
+            'phone': {'required': False},
         }
 
 
@@ -23,20 +23,12 @@ class ImageSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Image
-        fields = ['title', 'image', 'data']
+        fields = ['title', 'data']
 
     def create(self, validated_data):
         data_b64 = validated_data.pop('data')
-        title = validated_data.get('title', 'image')
         try:
-            img_bytes = base64.b64decode(data_b64)
-            if ',' in data_b64:
-                header, data_part = data_b64.split(',', 1)
-                ext = header.split('/')[-1].split(';')[0] if '/' in header else 'png'
-            else:
-                ext = 'png'
-            file_name = f"{title}.{ext}"
-            validated_data['image'] = ContentFile(img_bytes, name=file_name)
+            validated_data['data'] = base64.b64decode(data_b64)
         except Exception:
             raise serializers.ValidationError("Неверный формат данных изображения (должен быть base64)")
         return super().create(validated_data)
@@ -52,7 +44,7 @@ class CoordsSerializer(serializers.ModelSerializer):
 
 
 class PerevalAddedSerializer(serializers.ModelSerializer):
-    user = serializers.DictField()
+    user = serializers.DictField(write_only=True)
     coord = CoordsSerializer()
     images = ImageSerializer(many=True, required=False)
     level = serializers.DictField(child=serializers.CharField(allow_blank=True), write_only=True)
@@ -60,10 +52,15 @@ class PerevalAddedSerializer(serializers.ModelSerializer):
     class Meta:
         model = PerevalAdded
         fields = [
-            'beautyTitle', 'title', 'other_titles', 'connect',
-            'user', 'coord', 'level', 'images'
+            'beautyTitle', 'title', 'other_titles', 'connect', 'add_time',
+            'user', 'coord', 'level', 'images', 'status'
         ]
-        read_only_fields = ['add_time']
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if instance.user:
+            data['user'] = UserSerializer(instance.user).data
+        return data
 
     def create(self, validated_data):
         user_data = validated_data.pop('user')
@@ -71,7 +68,6 @@ class PerevalAddedSerializer(serializers.ModelSerializer):
         images_data = validated_data.pop('images', [])
         level_data = validated_data.pop('level', {})
 
-        user, _ = Users.get_or_create_with_update(**user_data)
 
         return PerevalAdded.create_with_related(
             user_data=user_data,
@@ -81,5 +77,39 @@ class PerevalAddedSerializer(serializers.ModelSerializer):
             **validated_data
         )
 
+    def update(self, instance, validated_data):
+        validated_data.pop('user', None)
 
+
+        coord_data = validated_data.pop('coord', None)
+        if coord_data:
+            coord_serializer = CoordsSerializer(instance.coord, data=coord_data, partial=True)
+            if coord_serializer.is_valid():
+                coord_serializer.save()
+
+        level_data = validated_data.pop('level', None)
+        if level_data:
+            level_obj, _ = PerevalLevel.objects.get_or_create(**level_data)
+            instance.level = level_obj
+
+        images_data = validated_data.pop('images', None)
+        if images_data is not None:
+            instance.pereval_images.all().delete()
+            for img_data in images_data:
+                image = Image.create_from_base64(img_data['title'], img_data['data'])
+                PerevalImages.objects.create(pereval=instance, image=image)
+
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        return instance
+
+    def validate_add_time(self, value):
+        if isinstance(value, str):
+            parsed = parse_datetime(value)
+            if parsed is None:
+                raise serializers.ValidationError("Неверный формат даты и времени. Используйте формат YYYY-MM-DD HH:MM:SS")
+            return parsed
+        return value
 
