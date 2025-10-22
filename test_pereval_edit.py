@@ -5,17 +5,16 @@ import json
 url = 'http://127.0.0.1:8000/api/submitData/22/'
 
 
+
 data = {
-    "beautyTitle": "пер. ",
-    "title": "Пхия Обновлённая",
+    "beautyTitle": "ФИО undone ",
+    "title": "updated",
     "other_titles": "Триев",
     "connect": "",
     "add_time": "2021-09-22 13:18:13",
     "user": {
-        "email": "qwerty@mail.ru",
-        "fam": "Пупкин",
-        "name": "Василий",
-        "otc": "Иванович",
+        "email": "qwert@mail.ru",
+        "fio": "Пупкин Василий Иванович",
         "phone": "+7 555 55 55"
     },
     "coord": {
@@ -37,18 +36,25 @@ data = {
     ]
 }
 
-
-
-
 headers = {'Content-Type': 'application/json'}
 
 response = requests.patch(url, data=json.dumps(data), headers=headers)
 
-if response.status_code == 200:
+# Всегда парсим ответ, если он JSON
+try:
     result = response.json()
-    if result.get('state') == 1:
-        print("Успешно обновлено!")
+    state = result.get('state')
+    message = result.get('message')
+    print(f"State: {state}")
+    print(f"Message: {message}")
+
+    if state == 1:
+        print("Обновление успешно!")
     else:
-        print("Ошибка обновления:", result.get('message'))
-else:
-    print(f"Ошибка HTTP {response.status_code}: {response.text}")
+        print("Ошибка обновления.")
+except json.JSONDecodeError:
+    print(f"Ответ не в JSON формате: {response.text}")
+
+# Дополнительно проверим статус
+if response.status_code != 200:
+    print(f"HTTP ошибка: {response.status_code}")

@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class UserViewset(viewsets.ModelViewSet):
     queryset = Users.objects.all()
-    serializer_class = ImageSerializer
+    serializer_class = UserSerializer
 
     def list(self, request, format=None):
         return Response([])
@@ -35,9 +35,37 @@ class ImageViewset(viewsets.ModelViewSet):
         self.perform_update(serializer)
         return Response(serializer.data)
 
+
+
 class PerevalAddedViewset(viewsets.ModelViewSet):
     queryset = PerevalAdded.objects.all()
     serializer_class = PerevalAddedSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated_data = serializer.validated_data
+
+        # Получаем данные пользователя
+        user_data = validated_data.pop('user')
+
+        # Парсим fio на first_name и last_name (если fio передано)
+        fio = user_data.get('fio')
+        if fio:
+            parts = fio.split()
+            if len(parts) >= 2:
+                user_data['last_name'] = parts[0]  # Фамилия
+                user_data['first_name'] = parts[1]  # Имя
+            else:
+                user_data['first_name'] = fio
+
+        user, created = Users.objects.get_or_create_with_update(**user_data)
+
+        # Создаём объект PerevalAdded
+        pereval = PerevalAdded.objects.create(**validated_data, user=user)
+
+        # Возвращаем ответ
+        return Response({'id': pereval.id, 'message': 'Отправлено успешно', 'status': 201})
 
     def update(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -47,7 +75,6 @@ class PerevalAddedViewset(viewsets.ModelViewSet):
                 'message': 'Запись уже обработана модератором и не может быть изменена'
             }, status=status.HTTP_400_BAD_REQUEST)
 
-
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         if serializer.is_valid():
             self.perform_update(serializer)
@@ -56,13 +83,11 @@ class PerevalAddedViewset(viewsets.ModelViewSet):
                 'message': 'Запись успешно обновлена'
             }, status=status.HTTP_200_OK)
         else:
+            errors = ', '.join([f"{field}: {error}" for field, error_list in serializer.errors.items() for error in error_list])
             return Response({
                 'state': 0,
-                'message': 'Ошибка валидации данных',
-                'errors': serializer.errors
+                'message': f'Ошибка валидации данных: {errors}'
             }, status=status.HTTP_400_BAD_REQUEST)
-
-
 
 class SubmitDataView(APIView):
     def post(self, request):
