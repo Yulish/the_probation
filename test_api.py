@@ -2,14 +2,14 @@ import requests
 
 url = 'http://127.0.0.1:8000/api/submitData/'
 data = {
-    "beautyTitle": "пер. ",
-    "title": "Очередной перевал",
+    "beautyTitle": "перевалище ",
+    "title": "Отдых",
     "other_titles": "Очередной перевал",
     "connect": "",
     "user": {
-        "email": "vasya@mail.ru",
-        "fio": "Новый Вася",
-        "phone": "+7 666 66 55"
+        "email": "test@mail.ru",
+        "fio": "Иванов Иван Иванович",
+        "phone": "+7 666 66 66"
     },
     "coord": {
         "latitude": 43.3842,

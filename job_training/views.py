@@ -29,28 +29,6 @@ class PerevalAddedViewset(viewsets.ModelViewSet):
     serializer_class = PerevalAddedSerializer
     user = UserSerializer()
 
-    def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if instance.status != 'new':
-            return Response({
-                'state': 0,
-                'message': 'Запись уже обработана модератором и не может быть изменена'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        if serializer.is_valid():
-            self.perform_update(serializer)
-            return Response({
-                'state': 1,
-                'message': 'Запись успешно обновлена'
-            }, status=status.HTTP_200_OK)
-        else:
-            return Response({
-                'state': 0,
-                'message': 'Ошибка валидации данных',
-                'errors': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 class SubmitDataView(APIView):
@@ -64,28 +42,25 @@ class SubmitDataView(APIView):
                 'id': pereval.id,
                 'beautyTitle': pereval.beautyTitle
             }, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def get(self, request, pk=None):
+        if pk:
+            pereval = get_object_or_404(PerevalAdded, pk=pk)
+            serializer = PerevalAddedSerializer(pereval)
+            return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            logger.error(f"Ошибки валидации: {serializer.errors}")
-            print(f"DEBUG: Serializer errors: {serializer.errors}")  # Для отладки в консоли
-            return Response({
-                'success': False,
-                'errors': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
+            email = request.query_params.get('user__email')
+            if not email:
+                return Response({'error': 'user__email parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
 
-    def get(self, request):
-        perevals = PerevalAdded.objects.all()
-        serializer = PerevalAddedSerializer(perevals, many=True)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+            queryset = PerevalAdded.objects.filter(user__email=email)
+            serializer = PerevalAddedSerializer(queryset, many=True)
+            return Response(serializer.data, status=status.HTTP_200_OK)
 
-
-class pereval_detail(APIView):
-
-    def get(self, request, pk):
-        pereval = get_object_or_404(PerevalAdded, pk=pk)
-        serializer = PerevalAddedSerializer(pereval)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-    def patch(self, request, pk):
+    def patch(self, request, pk=None):
+        if not pk:
+            return Response({'error': 'pk is required for update'}, status=status.HTTP_400_BAD_REQUEST)
         pereval = get_object_or_404(PerevalAdded, pk=pk)
 
         if pereval.status != 'new':

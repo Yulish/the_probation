@@ -2,13 +2,13 @@ import requests
 import json
 
 
-url = 'http://127.0.0.1:8000/api/submitData/39/'
+url = 'http://127.0.0.1:8000/api/submitData/40/'
 
 
 data = {
-    "beautyTitle": "пер. ",
-    "title": "Пхия другая",
-    "other_titles": "Триев",
+    "beautyTitle": "Крутой перевальчик",
+    "title": "Отличный отдых",
+    "other_titles": "Эльбрус",
     "connect": "",
     "add_time": "2021-09-22 13:18:13",
     "user": {
