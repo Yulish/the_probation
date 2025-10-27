@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     'django.contrib.flatpages',
     'rest_framework',
     'job_training',
+    'drf_yasg',
 ]
 
 SITE_ID = 1
@@ -96,6 +97,11 @@ AUTH_PASSWORD_VALIDATORS = [
 
 LANGUAGE_CODE = 'en-us'
 
+REST_FRAMEWORK = {
+    'DEFAULT_SCHEMA_CLASS': 'rest_framework.schemas.coreapi.AutoSchema',
+}
+
+
 TIME_ZONE = 'UTC'
 
 USE_I18N = True
@@ -116,3 +122,5 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 SITE_URL = 'http://127.0.0.1:8000'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+

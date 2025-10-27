@@ -6,7 +6,7 @@ url = 'http://127.0.0.1:8000/api/submitData/40/'
 
 
 data = {
-    "beautyTitle": "Крутой перевальчик",
+    "beautyTitle": "Крутой перевальчик (проверка)",
     "title": "Отличный отдых",
     "other_titles": "Эльбрус",
     "connect": "",

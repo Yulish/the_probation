@@ -16,7 +16,6 @@ class UserSerializer(serializers.ModelSerializer):
             'phone': {'required': False},
         }
 
-
 class ImageSerializer(serializers.ModelSerializer):
     data = serializers.CharField(write_only=True)
 
@@ -40,8 +39,6 @@ class CoordsSerializer(serializers.ModelSerializer):
         fields = ['latitude', 'longitude', 'height']
 
 
-
-
 class PerevalAddedSerializer(serializers.ModelSerializer):
     user = serializers.DictField(write_only=True)
     coord = CoordsSerializer()
@@ -54,6 +51,7 @@ class PerevalAddedSerializer(serializers.ModelSerializer):
             'beautyTitle', 'title', 'other_titles', 'connect', 'add_time',
             'user', 'coord', 'level', 'images', 'status'
         ]
+
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
