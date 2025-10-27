@@ -6,12 +6,12 @@ data = {
         "otc": "",
         "phone": "+799912347"
     },
-    "coord": {  # Изменено: убрали "location", сделали "coord" напрямую
+    "coord": {
         "latitude": 55.7558,
         "longitude": 37.6173,
         "height": 0
     },
-    "beautyTitle": "Красивое название",  # Изменено: вынесено на уровень
+    "beautyTitle": "Красивое название",
     "title": "Тестовый перевал",
     "other_titles": "Другой титул",
     "connect": "",

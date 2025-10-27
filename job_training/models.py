@@ -1,4 +1,4 @@
-from django.contrib.auth.models import AbstractUser, UserManager
+from django.contrib.auth.models import AbstractUser
 from django.core.files.base import ContentFile
 from django.db import models
 from django.utils import timezone
@@ -8,39 +8,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-class MyUserManager(UserManager):
-    def create_superuser(self, email, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)
-
-        if not email:
-            raise ValueError('The Email field must be set')
-        if not password:
-            raise ValueError('Password is required')
-
-        user = self.model(email=email, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
 
 
 class Users(AbstractUser):
-    username = models.CharField(max_length=150, unique=True, blank=True)
     email = models.EmailField(unique=True)
     phone = models.CharField(max_length=20, unique=True)
-    fio  = models.CharField(max_length=50, unique=False)
+    fio = models.CharField(max_length=50, unique=False)
 
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['phone']
-
-    objects = MyUserManager()
-
-    def save(self, *args, **kwargs):
-        if not self.username:
-            self.username = self.email
-        super().save(*args, **kwargs)
 
     @staticmethod
     def get_or_create_with_update(**user_data):
@@ -155,6 +132,7 @@ class PerevalAdded(models.Model):
         verbose_name = "Перевал"
         verbose_name_plural = "Перевалы"
 
+
     @classmethod
     def create_with_related(cls, user_data, coord_data, images_data, level_data, **pereval_data):
         email = user_data.get('email')
@@ -164,6 +142,7 @@ class PerevalAdded(models.Model):
         user, _ = Users.get_or_create_with_update(
             email=user_data["email"]
         )
+
 
         coord, _ = Coords.get_or_create_coords(**coord_data)
 

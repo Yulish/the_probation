@@ -4,6 +4,11 @@ from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+from rest_framework import status
+from rest_framework.response import Response
 
 import logging
 logger = logging.getLogger(__name__)
@@ -24,72 +29,22 @@ class ImageViewset(viewsets.ModelViewSet):
     queryset = Image.objects.all()
     serializer_class = ImageSerializer
 
-    def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if instance.status != 'new':
-            return Response({'error': 'Изменения разрешены только для записей со статусом "new".'},
-                            status=status.HTTP_403_FORBIDDEN)
-
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        self.perform_update(serializer)
-        return Response(serializer.data)
-
-
-
 class PerevalAddedViewset(viewsets.ModelViewSet):
     queryset = PerevalAdded.objects.all()
     serializer_class = PerevalAddedSerializer
+    user = UserSerializer()
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        validated_data = serializer.validated_data
 
-        # Получаем данные пользователя
-        user_data = validated_data.pop('user')
+class SubmitDataListView(APIView):
 
-        # Парсим fio на first_name и last_name (если fio передано)
-        fio = user_data.get('fio')
-        if fio:
-            parts = fio.split()
-            if len(parts) >= 2:
-                user_data['last_name'] = parts[0]  # Фамилия
-                user_data['first_name'] = parts[1]  # Имя
-            else:
-                user_data['first_name'] = fio
-
-        user, created = Users.objects.get_or_create_with_update(**user_data)
-
-        # Создаём объект PerevalAdded
-        pereval = PerevalAdded.objects.create(**validated_data, user=user)
-
-        # Возвращаем ответ
-        return Response({'id': pereval.id, 'message': 'Отправлено успешно', 'status': 201})
-
-    def update(self, request, *args, **kwargs):
-        instance = self.get_object()
-        if instance.status != 'new':
-            return Response({
-                'state': 0,
-                'message': 'Запись уже обработана модератором и не может быть изменена'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-        serializer = self.get_serializer(instance, data=request.data, partial=True)
-        if serializer.is_valid():
-            self.perform_update(serializer)
-            return Response({
-                'state': 1,
-                'message': 'Запись успешно обновлена'
-            }, status=status.HTTP_200_OK)
-        else:
-            errors = ', '.join([f"{field}: {error}" for field, error_list in serializer.errors.items() for error in error_list])
-            return Response({
-                'state': 0,
-                'message': f'Ошибка валидации данных: {errors}'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
-class SubmitDataView(APIView):
+    @swagger_auto_schema(
+        operation_description="Добавить новый перевал. Принимает данные о перевале и сохраняет их.",
+        request_body=PerevalAddedSerializer,
+        responses={
+            201: openapi.Response("Успешно создано", examples={"application/json": {"success": True, "id": 1, "beautyTitle": "Название"}}),
+            400: openapi.Response("Ошибка валидации", examples={"application/json": {"error": "Описание ошибки"}})
+        }
+    )
     def post(self, request):
         serializer = PerevalAddedSerializer(data=request.data)
         if serializer.is_valid():
@@ -98,43 +53,74 @@ class SubmitDataView(APIView):
             return Response({
                 'success': True,
                 'id': pereval.id,
-                'beautyTitle': pereval.beautyTitle
+                'beautyTitle': pereval.beautyTitle,
+                'status': pereval.status
             }, status=status.HTTP_201_CREATED)
-        else:
-            logger.error(f"Ошибки валидации: {serializer.errors}")
-            print(f"DEBUG: Serializer errors: {serializer.errors}")  # Для отладки в консоли
-            return Response({
-                'success': False,
-                'errors': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    @swagger_auto_schema(
+        operation_description="Получить список данных о перевалах по email пользователя.",
+        manual_parameters=[
+            openapi.Parameter('user__email', openapi.IN_QUERY, description="Email пользователя для фильтрации списка", type=openapi.TYPE_STRING, required=True)
+        ],
+        responses={
+            200: openapi.Response("Успешно", PerevalAddedSerializer(many=True)),
+            400: openapi.Response("Ошибка", examples={"application/json": {"error": "user__email parameter is required"}})
+        }
+    )
+    def get(self, request):
+        user_email = request.query_params.get('user__email')
+        if not user_email:
+            return Response({'error': 'user__email parameter is required'}, status=status.HTTP_400_BAD_REQUEST)
+        perevals = PerevalAdded.objects.filter(user__email=user_email)
+        serializer = PerevalAddedSerializer(perevals, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class pereval_detail(APIView):
+class SubmitDataDetailView(APIView):
+
+    @swagger_auto_schema(
+        operation_description="Получить детали перевала по ID.",
+        responses={
+            200: openapi.Response("Успешно", PerevalAddedSerializer),
+            404: openapi.Response("Не найдено", examples={"application/json": {"error": "Pereval not found"}})
+        }
+    )
+
 
     def get(self, request, pk):
         pereval = get_object_or_404(PerevalAdded, pk=pk)
         serializer = PerevalAddedSerializer(pereval)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @swagger_auto_schema(
+        operation_description="Обновить данные перевала по ID (только если статус 'new').",
+        request_body=PerevalAddedSerializer,
+        responses={
+            200: openapi.Response("Успешно обновлено", PerevalAddedSerializer),
+            400: openapi.Response("Ошибка валидации или статус не позволяет", examples={"application/json": {"error": "Описание"}}),
+            403: openapi.Response("Запрещено", examples={"application/json": {"error": "Можно редактировать только записи со статусом 'new'"}})
+        }
+    )
     def patch(self, request, pk):
         pereval = get_object_or_404(PerevalAdded, pk=pk)
-
         if pereval.status != 'new':
             return Response({
                 'state': 0,
                 'message': 'Запись уже обработана модератором и не может быть изменена'
-            }, status=status.HTTP_400_BAD_REQUEST)
-
+            }, status=status.HTTP_403_FORBIDDEN)
         serializer = PerevalAddedSerializer(pereval, data=request.data, partial=True)
         if serializer.is_valid():
             serializer.save()
+            logger.info(f"Обновлён PerevalAdded с ID {pereval.id}")
             return Response({
                 'state': 1,
                 'message': 'Запись успешно обновлена'
             }, status=status.HTTP_200_OK)
-        else:
-            return Response({
-                'state': 0,
-                'message': 'Ошибка валидации данных',
-                'errors': serializer.errors
-            }, status=status.HTTP_400_BAD_REQUEST)
+        return Response({
+            'state': 0,
+            'message': 'Ошибка валидации данных',
+            'errors': serializer.errors
+        }, status=status.HTTP_400_BAD_REQUEST)
+
+
